@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>繁簡語詞轉換工具</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1f1f1d;--mu:#6b6a65;--bd:#dcdad3;--ac:#2b6cb0;--acx:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--card:#222221;--tx:#ecebe6;--mu:#a09f98;--bd:#3a3a37;--ac:#6aa7e6;--acx:#101010}}
+:root[data-theme="dark"]{--bg:#171716;--card:#222221;--tx:#ecebe6;--mu:#a09f98;--bd:#3a3a37;--ac:#6aa7e6;--acx:#101010}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+main{max-width:960px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.4rem;margin:0 0 4px}
+.sub{color:var(--mu);font-size:.9rem;margin:0 0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+select,button{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer}
+button.p{background:var(--ac);color:var(--acx);border-color:var(--ac)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px}
+.box label{display:block;font-size:.85rem;color:var(--mu);margin-bottom:6px}
+textarea{width:100%;min-height:260px;resize:vertical;border:0;outline:0;background:transparent;color:var(--tx);font:inherit}
+details{margin-top:14px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+summary{cursor:pointer}
+details textarea{min-height:90px;border:1px solid var(--bd);border-radius:8px;padding:8px;margin-top:8px}
+.st{font-size:.82rem;color:var(--mu);margin-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>繁簡語詞轉換工具</h1>
+<p class="sub">不只轉字形,也轉換兩岸慣用詞彙(軟體↔软件、資料庫↔数据库…)。</p>
+<div class="bar">
+<select id="mode">
+<option value="s2tw">簡體 → 繁體(台灣用語)</option>
+<option value="s2t">簡體 → 繁體(僅字形)</option>
+<option value="t2s">繁體(台灣)→ 簡體(大陸用語)</option>
+<option value="t2sc">繁體 → 簡體(僅字形)</option>
+</select>
+<button id="swap">⇄ 互換方向</button>
+<button id="ex">範例</button>
+<button id="cp" class="p">複製結果</button>
+<button id="clr">清除</button>
+</div>
+<div class="grid">
+<div class="box"><label>輸入</label><textarea id="in" placeholder="在此貼上或輸入文字…"></textarea></div>
+<div class="box"><label>輸出</label><textarea id="out" readonly></textarea></div>
+</div>
+<details>
+<summary>自訂詞彙(優先套用)</summary>
+<textarea id="cus" placeholder="每行一組,格式:原詞=目標詞&#10;例如:\n小程序=小程式"></textarea>
+</details>
+<details open><summary>🔒 鎖定詞(人名、地名、功法名等,不會被轉換)</summary><textarea id="lock" placeholder="每行一個詞,例如:&#10;沈鳶&#10;雲夢澤&#10;九轉還魂訣"></textarea></details>
+<label class="st" style="display:block"><input type="checkbox" id="pun" checked> 同時轉換標點(台灣 「」『』 ⇄ 大陸 “” ‘’)</label>
+<div class="st" id="st">轉換引擎:載入中…</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
+<script>
+// 內建備援字典(OpenCC 載入失敗時使用)
+const PAIRS="万萬 与與 专專 业業 东東 丝絲 两兩 严嚴 个個 丰豐 临臨 为為 举舉 义義 乐樂 习習 书書 买買 乱亂 争爭 于於 云雲 亚亞 产產 亲親 仅僅 从從 仓倉 仪儀 们們 价價 众眾 优優 会會 伟偉 传傳 伤傷 体體 侧側 俭儉 债債 儿兒 党黨 兰蘭 关關 兴興 养養 内內 写寫 军軍 农農 决決 况況 净淨 减減 凤鳳 处處 击擊 刘劉 则則 创創 删刪 别別 剧劇 劝勸 办辦 务務 动動 励勵 劳勞 势勢 区區 医醫 华華 协協 单單 卖賣 卫衛 厂廠 厅廳 历歷 压壓 县縣 参參 双雙 发發 变變 叶葉 号號 后後 吗嗎 启啟 员員 听聽 团團 园園 围圍 国國 图圖 圆圓 场場 坏壞 块塊 坚堅 声聲 备備 复復 头頭 奋奮 奖獎 妇婦 妈媽 娱娛 学學 宁寧 宝寶 实實 审審 宽寬 对對 寻尋 导導 将將 尔爾 层層 属屬 岁歲 币幣 带帶 帮幫 并並 广廣 庆慶 库庫 应應 开開 异異 张張 强強 归歸 当當 录錄 忆憶 怀懷 态態 总總 恶惡 惊驚 战戰 户戶 执執 扩擴 护護 报報 择擇 担擔 拥擁 挂掛 换換 据據 摄攝 数數 断斷 旧舊 时時 显顯 机機 杀殺 杂雜 权權 条條 来來 构構 标標 样樣 桥橋 检檢 楼樓 欢歡 毕畢 气氣 汉漢 没沒 济濟 测測 浅淺 满滿 灯燈 灵靈 点點 热熱 爱愛 电電 画畫 码碼 确確 礼禮 离離 种種 积積 称稱 笔筆 简簡 类類 紧緊 红紅 约約 级級 纪紀 纸紙 线線 练練 组組 细細 织織 终終 经經 结結 给給 绝絕 统統 继繼 续續 维維 网網 罗羅 职職 联聯 脑腦 艺藝 节節 药藥 获獲 虑慮 补補 装裝 见見 观觀 规規 视視 览覽 觉覺 计計 订訂 认認 让讓 议議 记記 讲講 许許 论論 设設 访訪 证證 评評 识識 诉訴 词詞 译譯 试試 话話 该該 语語 误誤 说說 请請 读讀 课課 谁誰 调調 谢謝 负負 财財 责責 败敗 账帳 货貨 质質 购購 费費 资資 赛賽 车車 软軟 轻輕 载載 较較 输輸 边邊 达達 过過 运運 还還 这這 进進 远遠 连連 选選 邮郵 释釋 里裡 钱錢 铁鐵 银銀 错錯 键鍵 长長 门門 问問 间間 闻聞 队隊 阳陽 际際 陆陸 难難 页頁 顺順 须須 预預 领領 题題 风風 飞飛 饭飯 马馬 验驗 鱼魚 鸟鳥 鸡雞 黄黃 齐齊 龙龍";
+// [大陸用語, 台灣用語]
+const PHR=[["软件","軟體"],["硬件","硬體"],["内存","記憶體"],["网络","網路"],["程序","程式"],["鼠标","滑鼠"],["激光","雷射"],["视频","影片"],["信息","資訊"],["数据库","資料庫"],["数据","資料"],["服务器","伺服器"],["打印","列印"],["默认","預設"],["文件夹","資料夾"],["文件","檔案"],["用户","使用者"],["登录","登入"],["注销","登出"],["链接","連結"],["博客","部落格"],["优盘","隨身碟"],["U盘","隨身碟"],["笔记本电脑","筆記型電腦"],["台式机","桌上型電腦"],["短信","簡訊"],["质量","品質"],["公交车","公車"],["出租车","計程車"],["地铁","捷運"],["酸奶","優格"],["土豆","馬鈴薯"],["西红柿","番茄"],["方便面","泡麵"],["支持","支援"],["兼容","相容"],["设置","設定"],["创建","建立"],["调试","除錯"],["变量","變數"],["函数","函式"],["对象","物件"],["接口","介面"],["项目","專案"],["代码","程式碼"],["编程","程式設計"],["算法","演算法"],["分辨率","解析度"],["显示器","螢幕"],["屏幕","螢幕"],["摄像头","攝影機"],["硬盘","硬碟"],["光盘","光碟"],["缓存","快取"],["宽带","寬頻"],["触摸屏","觸控螢幕"],["人工智能","人工智慧"],["互联网","網際網路"],["局域网","區域網路"],["操作系统","作業系統"],["账号","帳號"]];
+// 字形對照(簡→繁、繁→簡)
+const S2T={},T2S={};
+PAIRS.split(" ").forEach(p=>{const s=p[0],t=p[1];S2T[s]=t;if(!T2S[t])T2S[t]=s});
+// 簡轉繁時,詞彙以簡體為鍵;繁轉簡時,以台灣用語(繁)為鍵,目標為「大陸用語轉簡體」
+const toTW=PHR.map(([c,t])=>[c,t]);
+const toCN=PHR.map(([c,t])=>[t,c]);
+function fallback(text,mode){
+ const phrases=(mode==="s2tw")?toTW:(mode==="t2s")?toCN:[];
+ const map=(mode==="s2tw"||mode==="s2t")?S2T:T2S;
+ const sorted=[...phrases].sort((a,b)=>b[0].length-a[0].length);
+ // 先以占位符保護詞彙替換結果,再逐字轉換
+ const hold=[];
+ sorted.forEach(([a,b])=>{text=text.split(a).join("\u0001"+(hold.push(b)-1)+"\u0002")});
+ text=[...text].map(ch=>map[ch]||ch).join("");
+ return text.replace(/\u0001(\d+)\u0002/g,(_,i)=>{
+  const v=hold[+i];return mode==="t2s"?[...v].map(c=>T2S[c]||c).join(""):v});
+}
+// OpenCC 設定
+const CFG={s2tw:["cn","twp"],s2t:["cn","t"],t2s:["twp","cn"],t2sc:["t","cn"]};
+const cache={};
+function engine(mode){
+ if(typeof OpenCC==="undefined")return null;
+ try{return cache[mode]||(cache[mode]=OpenCC.Converter({from:CFG[mode][0],to:CFG[mode][1]}))}catch(e){return null}
+}
+const $=id=>document.getElementById(id);
+function punct(r,m){if(!$("pun").checked)return r;const a=(m==="t2s"||m==="t2sc")?[["「","“"],["」","”"],["『","‘"],["』","’"]]:[["“","「"],["”","」"]];a.forEach(([x,y])=>{r=r.split(x).join(y)});return r}
+function custom(text){
+ const rules=$("cus").value.split("\n").map(l=>l.split("=")).filter(a=>a.length===2&&a[0].trim()).map(a=>[a[0].trim(),a[1].trim()]).concat($("lock").value.split("\n").map(s=>s.trim()).filter(Boolean).map(s=>[s,s]));
+ const hold=[];
+ rules.sort((a,b)=>b[0].length-a[0].length).forEach(([a,b])=>{text=text.split(a).join("\u0003"+(hold.push(b)-1)+"\u0004")});
+ return {text,hold};
+}
+function run(){
+ const mode=$("mode").value;let {text,hold}=custom($("in").value);
+ const conv=engine(mode);
+ // 以占位符保護自訂詞彙,避免被引擎再次轉換
+ let r=conv?conv(text):fallback(text,mode);
+ r=punct(r,mode);r=r.replace(/\u0003(\d+)\u0004/g,(_,i)=>hold[+i]);
+ $("out").value=r;
+ $("st").textContent="轉換引擎:"+(conv?"OpenCC(完整字詞庫)":"內建備援字典(約 "+Object.keys(S2T).length+" 字、"+PHR.length+" 組詞彙,無法連線載入 OpenCC)");
+}
+["in","cus","lock","pun"].forEach(i=>$(i).addEventListener("input",run));
+$("mode").addEventListener("change",run);
+$("swap").onclick=()=>{
+ const m=$("mode"),map={s2tw:"t2s",t2s:"s2tw",s2t:"t2sc",t2sc:"s2t"};
+ $("in").value=$("out").value;m.value=map[m.value];run();
+};
+$("ex").onclick=()=>{
+ const m=$("mode").value;
+ $("in").value=(m==="s2tw"||m==="s2t")
+  ?"请在软件中设置默认的服务器，并把数据库文件保存到U盘。鼠标和打印机的驱动程序已经更新。"
+  :"請在軟體中設定預設的伺服器，並把資料庫檔案儲存到隨身碟。滑鼠和印表機的驅動程式已經更新。";
+ run();
+};
+$("cp").onclick=async()=>{
+ try{await navigator.clipboard.writeText($("out").value);$("cp").textContent="已複製 ✓"}
+ catch(e){$("out").select();document.execCommand("copy");$("cp").textContent="已複製 ✓"}
+ setTimeout(()=>$("cp").textContent="複製結果",1200);
+};
+$("clr").onclick=()=>{$("in").value="";run()};
+run();
+// 載入 OpenCC 後重新轉換
+window.addEventListener("load",run);
+</script>
+</body>
+</html>
